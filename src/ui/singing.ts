@@ -13,7 +13,7 @@ import { lyricsToSyllables, type Syllable } from "../wasm/engine.ts";
 import { planSong, planNoteOn, planNoteOff, planMelisma } from "../wasm/engine.ts";
 import { EXHALE_LABEL } from "../wasm/engine.ts";
 import { DEMO_SONGS } from "../wasm/engine.ts";
-import type { Gesture } from "../wasm/types.ts";
+import type { DemoSong, Gesture } from "../wasm/types.ts";
 import { nearestBody, type BodyMix } from "./body.ts";
 
 /** A note on the piano roll, on the voice clock (s); t1 is null while it is held. */
@@ -260,6 +260,11 @@ engine.onPlanned((m) => {
 export async function playDemo(name: string, body: BodyMix, ready?: () => Promise<void>): Promise<void> {
   const song = DEMO_SONGS.find((s) => s.name === name);
   if (!song) return;
+  return playSong(song, body, ready);
+}
+
+/** Sing any song of the demo shape (the studio's and the gallery's songs go through here). */
+export async function playSong(song: DemoSong, body: BodyMix, ready?: () => Promise<void>): Promise<void> {
   stopSinging();
   const token = demoToken;
   await ready?.();

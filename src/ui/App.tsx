@@ -21,6 +21,7 @@ import type { Mode } from "./store.ts";
 import type { BodyName } from "../worklet/protocol.ts";
 import { BodyPad } from "./components/BodyPad.tsx";
 import { bodyLabel, presetOf, PRESETS } from "./body.ts";
+import { SimpleApp } from "../studio/SimpleApp.tsx";
 
 // three.js only loads when the 3D view is first shown
 const AnatomyView3D = lazy(() => import("./components/AnatomyView3D.tsx").then((m) => ({ default: m.AnatomyView3D })));
@@ -222,6 +223,8 @@ export function App() {
         <DuetPage id={show} />
       </Suspense>
     );
+  // the full synthesizer lives at `?pro`; everyone else gets the easy mode
+  if (!new URLSearchParams(window.location.search).has("pro")) return <SimpleApp />;
   return <Wall />;
 }
 

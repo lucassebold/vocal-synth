@@ -1,0 +1,9 @@
+node_modules
+target
+dist
+out
+data
+.git
+*.wav
+.DS_Store
+public/shows
