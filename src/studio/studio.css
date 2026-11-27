@@ -720,3 +720,15 @@ button.mini:disabled {
 .beat-dots span {
   margin-left: 8px;
 }
+
+/* the mouth over the lanes in band mode: it sings the melody voice, in step with the line */
+.band-mouth {
+  border: 1px solid var(--line, #2a3a4a);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.band-mouth .screen {
+  height: 240px;
+  border: 0;
+}

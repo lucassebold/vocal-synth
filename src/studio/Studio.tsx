@@ -6,9 +6,9 @@ import { play, playAudio, stop, useNow } from "./player.ts";
 import { publishSong, renderBand } from "./api.ts";
 import { useViewing } from "./viewing.ts";
 import { NoteGrid } from "./NoteGrid.tsx";
-import { BandLanes, BandStatus, Pick, beatAt } from "./Band.tsx";
+import { BandLanes, BandStatus, LEAD_IN, Pick, beatAt } from "./Band.tsx";
 import {
-  BPM_MAX, BPM_MIN, MOODS, REPEATS, REST, ROWS, SHIFTS, SOUNDS, STEPS, VOICES,
+  BPM_MAX, BPM_MIN, MOODS, REPEATS, REST, ROWS, SHIFTS, SOUNDS, STEPS, STEP_BEATS, VOICES,
   bandBeats, bandHasNotes, defaultBand, emptySong, midiOf, newTrack, noteCount, problem, randomGrid, type Band, type Beat, type Song, type Track,
 } from "./song.ts";
 
@@ -67,6 +67,17 @@ function draft(): Song {
 /** the band as it is sent: voices with no notes stay out (the server refuses an empty one) */
 function liveBand(b: Band): Band {
   return { ...b, tracks: b.tracks.filter((t) => (t.grid ? noteCount(t.grid) > 0 : (t.notes ?? []).some((n) => n[0] > 0))) };
+}
+
+/** the first voice of the band as a plain song, so the engine can sing it (silently) for the mouth */
+function melodySong(song: Song, t: Track | undefined): Song {
+  if (!t) return { ...song, band: undefined };
+  const notes: [number, number][] = t.notes ? t.notes.map((n) => [n[0] > 0 ? n[0] + t.shift : n[0], n[1]]) : [];
+  if (!t.notes && t.grid) for (const row of t.grid) {
+    if (row !== REST) notes.push([midiOf(row, song.mood) + t.shift, STEP_BEATS]);
+    else if (notes.length) notes[notes.length - 1][1] += STEP_BEATS;
+  }
+  return { ...song, band: undefined, voice: t.voice, sound: t.sound, grid: [], notes };
 }
 
 export function Studio(props: { onPublished: () => void }) {
@@ -181,7 +192,7 @@ export function Studio(props: { onPublished: () => void }) {
     setMsg(null);
     try {
       const url = await renderBand({ bpm: song.bpm, repeat: song.repeat, mood: song.mood, band: sent });
-      if (id === renderId.current) playAudio(url, "studio");
+      if (id === renderId.current) playAudio(url, "studio", { song: melodySong(song, sent.tracks[0]), lead: LEAD_IN });
     } catch (e) {
       if (id === renderId.current) setMsg({ ok: false, text: e instanceof Error ? e.message : "não foi possível gerar a banda" });
     } finally {
@@ -266,6 +277,11 @@ export function Studio(props: { onPublished: () => void }) {
                 {msg.text}
               </p>
             )}
+            <div className="band-mouth">
+              <Screen title="Boca" sub={playing ? "cantando a melodia, ao vivo" : "aperte ▶ para ver a boca cantar"}>
+                <AnatomyView info={singInfo} overlay={singWords} showFormants={false} />
+              </Screen>
+            </div>
             <h2>1. Cada linha é uma voz. Clique nos quadrados para pôr notas.</h2>
             <BandLanes
               band={band}

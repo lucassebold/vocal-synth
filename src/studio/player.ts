@@ -37,7 +37,20 @@ function loop(): void {
   raf = requestAnimationFrame(loop);
 }
 
+/** the volume the person had, while the engine sings silently under a rendered band */
+let savedVolume: number | null = null;
+let mouthTimer = 0;
+
+function unmute(): void {
+  clearTimeout(mouthTimer);
+  mouthTimer = 0;
+  if (savedVolume === null) return;
+  useStore.getState().setVolume(savedVolume);
+  savedVolume = null;
+}
+
 function finish(): void {
+  unmute();
   cancelAnimationFrame(raf);
   raf = 0;
   heard = false;
@@ -72,6 +85,7 @@ function applyTimbre(t: Timbre = {}): void {
 let audioEl: HTMLAudioElement | null = null;
 
 function stopAudio(): void {
+  unmute();
   cancelAnimationFrame(timeRaf);
   timeRaf = 0;
   if (!audioEl) return;
@@ -80,7 +94,12 @@ function stopAudio(): void {
   audioEl = null;
 }
 
-export function playAudio(url: string, key: string): void {
+/**
+ * The mix is an audio file, so the mouth has no sound of its own to follow: the engine sings the
+ * melody voice silently beside it (volume 0) and the mouth drawing moves with it.
+ * `lead` is the silence at the start of the mix, in seconds.
+ */
+export function playAudio(url: string, key: string, mouth?: { song: Song; timbre?: Timbre; lead: number }): void {
   stopSinging();
   stopAudio();
   cancelAnimationFrame(raf);
@@ -88,14 +107,25 @@ export function playAudio(url: string, key: string): void {
   const el = new Audio(url);
   audioEl = el;
   useNow.setState({ key, step: -1, time: 0 });
-  el.onended = () => finish();
+  el.onended = () => { stopSinging(); finish(); };
   const follow = () => {
     if (audioEl !== el) return;
     useNow.setState({ time: el.currentTime });
+    tickSinging();
     timeRaf = requestAnimationFrame(follow);
   };
   el.play().then(
-    () => { timeRaf = requestAnimationFrame(follow); },
+    () => {
+      timeRaf = requestAnimationFrame(follow);
+      if (!mouth) return;
+      if (savedVolume === null) savedVolume = useStore.getState().volume;
+      useStore.getState().setVolume(0);
+      applyTimbre(mouth.timbre);
+      mouthTimer = window.setTimeout(() => {
+        if (audioEl !== el) return;
+        void playSong(toDemoSong(mouth.song), PRESETS[mouth.song.voice], useStore.getState().start).catch(() => {});
+      }, Math.max(0, mouth.lead * 1000 - 60));
+    },
     () => finish(),
   );
 }
